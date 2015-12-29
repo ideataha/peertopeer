@@ -4,12 +4,12 @@ import math
 import sys
 from random import randint
 
-# numberofpeers=70
-cycletorun=100
+numberofpeers=70
+cycletorun=1000
 
-# if len(sys.argv) != 1:
-# 	numberofpeers=int(sys.argv[1])
-# 	cycletorun=int(sys.argv[2])
+if len(sys.argv) != 1:
+	numberofpeers=int(sys.argv[1])
+	cycletorun=int(sys.argv[2])
 
 reread=True
 
@@ -38,10 +38,10 @@ sys.stdout = Tee(sys.stdout, f)
 class Global:
     xxyy=[0.0,0.0,200.0,200.0]
     gpsaccuracy=6
-    #latsegments=[27,58,108,158,184,158,108,58,27,58,108,158,184]
-    #longsegments=[37,14,14,14,37,99,99,99,151,186,186,186,151]
-    latsegments=[27,58,108,158,184,158,108]
-    longsegments=[37,14,14,14,37,99,99]
+    latsegments=[27,58,108,158,184,158,108,58,27,58,108,158,184]
+    longsegments=[37,14,14,14,37,99,99,99,151,186,186,186,151]
+    #latsegments=[27,58,108,158,184,158,108]
+    #longsegments=[37,14,14,14,37,99,99]
     nodelist=[]
     supernodelist=[]
     POSITIVEINFINITY="z"
@@ -58,18 +58,7 @@ class Global:
         return round(random.uniform(Global.xxyy[0],Global.xxyy[2]),Global.gpsaccuracy)
     def createid(self):
         return random.randint(1,9999999999)
-    def generate_nodes_supernodes(self,sn,n):
-        temp=0
-        while temp < sn:
-            Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
-            Global.nodelist.append(Global.supernodelist[-1])
-            if temp != 0:
-                Global.supernodelist[-1].left = Global.supernodelist[-2].id
-                Global.supernodelist[-2].right = Global.supernodelist[-1].id
-            temp=temp+1
-        for i in range (n):
-            Global.nodelist.append(Node(False,Global.createid(Global),Global.createlat(Global),Global.createlong(Global)))
-    
+
     def iterate(self):
         print("done")
 '''end global class'''
@@ -202,48 +191,60 @@ class Node(object):
 
 
 
+temp=0
+while temp < len(Global.latsegments):
+    Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
+    Global.nodelist.append(Global.supernodelist[len(Global.supernodelist)-1])
+    if temp != 0:
+        Global.supernodelist[len(Global.supernodelist)-1].left = Global.supernodelist[len(Global.supernodelist)-2].id
+        Global.supernodelist[len(Global.supernodelist)-2].right = Global.supernodelist[len(Global.supernodelist)-1].id
 
+    temp=temp+1
 
-numoftrial=1000
 
 list_numberofpeers=[10,100,1000,10000,100000,1000000]
 for n_p in list_numberofpeers:
-    for trial in range(numoftrial):
-        del Global.nodelist[:]
-        del Global.supernodelist[:]
+    Global.nodelist=[]
+    for i in range (n_p):
+        Global.nodelist.append(Node(False,Global.createid(Global),Global.createlat(Global),Global.createlong(Global)))
 
-        Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
-        tempo=0
-        fflag=True
-        while tempo < cycletorun and fflag:
-            tempo+=1
-            for node in Global.nodelist:
-                node.run()
+    for node in Global.nodelist:
+        node.run()
 
-            tnode=Global.nodelist[0]
-            for node in Global.nodelist:
-                if node.id < tnode.id:
-                    tnode=node
+    tempo=0
+    fflag=True
+    while tempo < cycletorun and fflag:
+        tempo=tempo+1
+        for node in Global.nodelist:
+            node.run()
 
-            temp=0
-            newid=tnode.id
-            oldid=Global.NEGATIVEINFINITY
-            while temp < len(Global.nodelist):
+        tnode=Global.nodelist[0]
+        for node in Global.nodelist:
+            if node.id < tnode.id:
+                tnode=node
 
-                temp=temp+1
-                for node in Global.nodelist:
-                    if node.id == tnode.right:
-                        tnode=node
-                        break
+        newid=tnode.id
+        oldid=Global.NEGATIVEINFINITY
+
+        temp=0
+        while temp < len(Global.nodelist):
+            temp=temp+1
         
-                if newid > oldid:
-                    oldid=newid
-                    newid=tnode.id
-                    if temp == len(Global.nodelist):
-                        print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
-                        fflag=False
-                else:
+            for node in Global.nodelist:
+                if node.id == tnode.right:
+                    tnode=node
                     break
+            if newid > oldid:
+                oldid=newid
+                newid=tnode.id
+                if temp == len(Global.nodelist):
+                    print ("number of node: %d  -  number of cycle: %d" %(n_p,tempo))
+                    fflag=False
+            else:
+                break
+
+
+
 
 #use the original
 sys.stdout = original
