@@ -12,7 +12,7 @@ cycletorun=50
 # 	cycletorun=int(sys.argv[2])
 
 reread=True
-
+verbose=False
 
 '''begin class to write in text fiel'''
 class Tee(object):
@@ -261,62 +261,66 @@ numoftrial=1
 
 list_numberofpeers=[10]#,100,1000,10000,100000,1000000]
 for n_p in list_numberofpeers:
-	res=[]
-	for trial in range(numoftrial):
-		Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
-		tempo=0
-		fflag=True
-		while tempo < cycletorun and fflag:
-			tempo+=1
-			print("\n\n\n\n\n\nCycle # : %d" % tempo)
-			for node in Global.nodelist:
-				node.run()
-			tnode=Global.nodelist[0]
-			for node in Global.nodelist:
-				if node.id < tnode.id:
-					tnode=node
-			temp=0
-			newid=tnode.id
-			oldid=Global.NEGATIVEINFINITY
-			print("list of lineared peers")
-			while temp < len(Global.nodelist):
-				temp=temp+1
+    res=[]
+    for trial in range(numoftrial):
+        Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
+        tempo=0
+        fflag=True
+        while tempo < cycletorun and fflag:
+            tempo+=1
+            if verbose:
+                print("\n\n\n\n\n\nCycle # : %d" % tempo)
+            for node in Global.nodelist:
+                node.run()
+            tnode=Global.nodelist[0]
+            for node in Global.nodelist:
+                if node.id < tnode.id:
+                    tnode=node
+            temp=0
+            newid=tnode.id
+            oldid=Global.NEGATIVEINFINITY
+            if verbose:
+                print("list of lineared peers")
+            while temp < len(Global.nodelist):
+                temp=temp+1
 
+                iss = ""
+                if tnode.issupernode:
+                    iss="\t(s)\t"
+                extratab=""
+                if tnode.left == Global.NEGATIVEINFINITY:
+                    extratab="\t"
+                extratab2=""
+                if tnode.right == Global.POSITIVEINFINITY:
+                    extratab2="\t\t"
+                if verbose:
+                    print("%d : \t%s \t%s<- %s -> \t%s%s %s - %d messages" % (temp,tnode.left,extratab,tnode.id,tnode.right,extratab2, iss, len(tnode.messagebuffer)))
+                tnode.isarranged=True
 
+                for node in Global.nodelist:
+                    if node.id == tnode.right:
+                        tnode=node
+                        break
+                if newid > oldid:
+                    oldid=newid
+                    newid=tnode.id
+                    if temp == len(Global.nodelist):
+                        if verbose:
+                            print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
+                        res.append(tempo)
+                        fflag=False
+                else:
+                    break
 
-				iss = ""
-				if tnode.issupernode:
-					iss="\t(s)\t"
-				extratab=""
-				if tnode.left == Global.NEGATIVEINFINITY:
-					extratab="\t"
-				extratab2=""
-				if tnode.right == Global.POSITIVEINFINITY:
-					extratab2="\t\t"
-				print("%d : \t%s \t%s<- %s -> \t%s%s %s - %d messages" % (temp,tnode.left,extratab,tnode.id,tnode.right,extratab2, iss, len(tnode.messagebuffer)))
-				tnode.isarranged=True
-
-				for node in Global.nodelist:
-					if node.id == tnode.right:
-						tnode=node
-						break
-				if newid > oldid:
-					oldid=newid
-					newid=tnode.id
-					if temp == len(Global.nodelist):
-						#print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
-						res.append(tempo)
-						fflag=False
-				else:
-					break
-
-			print("\n\nlist of unlinearized peers for cycle: %d" % tempo)
-			counter = 1
-			for nod in Global.nodelist:
-				if nod.isarranged == False:
-					print("%d  -  %s <>  %s  <>  %s  --> %d mesages" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer)))
-					counter = counter+1
-	#print("for n=",n_p," the mean is ",numpy.mean(res))
+            if verbose:
+                print("\n\nlist of unlinearized peers for cycle: %d" % tempo)
+            counter = 1
+            for nod in Global.nodelist:
+                if nod.isarranged == False:
+                    if verbose:
+                        print("%d  -  %s <>  %s  <>  %s  --> %d mesages" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer)))
+                    counter = counter+1
+    print("for n=",n_p," the mean is ",numpy.mean(res))
 #use the original
 sys.stdout = original
 #print("This won't appear on file")  # Only on stdout
