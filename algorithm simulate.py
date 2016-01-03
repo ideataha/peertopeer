@@ -1,11 +1,11 @@
 #__author__ = 'ideataha'
 import random
-import math
+import numpy,math
 import sys
 from random import randint
 
 # numberofpeers=70
-cycletorun=100
+cycletorun=50
 
 # if len(sys.argv) != 1:
 # 	numberofpeers=int(sys.argv[1])
@@ -50,6 +50,40 @@ class Global:
     counter=0
     #latitude = x axis
     #longitude = y axis
+    def compare(self,a,b):
+    	if a==b:
+    		return False
+    	if a==Global.NEGATIVEINFINITY or b==Global.POSITIVEINFINITY:
+    		return False
+    	if a==Global.POSITIVEINFINITY or b==Global.NEGATIVEINFINITY:
+    		return True
+    	aa=a.split("-")
+    	bb=b.split("-")
+    	ta=[]
+    	tb=[]
+    	del ta[:]
+    	del tb[:]
+    	for i,aaa in enumerate(aa):
+            if i!=0:
+                if len(aaa)!=10:
+                    temp=10-len(aaa)
+                    for z in range(temp):
+                        aaa+="0"
+            ta.append(int(aaa))
+    	for i,bbb in enumerate(bb):
+            if i!=0:
+                if len(bbb)!=10:
+                    temp=10-len(bbb)
+                    for z in range(temp):
+                        bbb+="0"
+            tb.append(int(bbb))
+    	for i in range(len(ta)):
+    		#print("ta : ",ta[i])
+    		#print("tb : ",tb[i])
+    		if ta[i]<tb[i]:
+    			return False
+    		if ta[i]>tb[i]:
+    			return True
     def dist(x1,x2,y1,y2):
         return math.sqrt((x1-x2)**2 + (y1-y2)**2)
     def createlong(self):
@@ -59,16 +93,18 @@ class Global:
     def createid(self):
         return random.randint(1,9999999999)
     def generate_nodes_supernodes(self,sn,n):
-        temp=0
-        while temp < sn:
-            Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
-            Global.nodelist.append(Global.supernodelist[-1])
-            if temp != 0:
-                Global.supernodelist[-1].left = Global.supernodelist[-2].id
-                Global.supernodelist[-2].right = Global.supernodelist[-1].id
-            temp=temp+1
-        for i in range (n):
-            Global.nodelist.append(Node(False,Global.createid(Global),Global.createlat(Global),Global.createlong(Global)))
+    	del Global.nodelist[:]
+    	del Global.supernodelist[:]
+    	temp=0
+    	while temp < sn:
+    		Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
+    		Global.nodelist.append(Global.supernodelist[-1])
+    		if temp != 0:
+    			Global.supernodelist[-1].left = Global.supernodelist[-2].id
+    			Global.supernodelist[-2].right = Global.supernodelist[-1].id
+    		temp=temp+1
+    	for i in range (n):
+    		Global.nodelist.append(Node(False,Global.createid(Global),Global.createlat(Global),Global.createlong(Global)))
     
     def iterate(self):
         print("done")
@@ -102,44 +138,60 @@ class Node(object):
         del self.messagebuffer[index]
 
         if msg.code == 1:
-            if msg.message == self.right or msg.message == self.left:
+            if msg.message == self.right or msg.message == self.left or msg.message == self.id:
                 self.readmessage()
                 return
+
+            if msg.message == Global.NEGATIVEINFINITY:
+                if self.left != msg.message:
+                    self.sendmessage(1,msg.message,self.left)
+                self.left=msg.message
+                return
+
+            if msg.message == Global.POSITIVEINFINITY:
+                if self.right != msg.message:
+                    self.sendmessage(1,msg.message,self.right)
+                self.right==msg.message
+                return
             
-            if msg.message < self.left:
+            #if msg.message < self.left:
+            if Global.compare(Global,self.left,msg.message):
                 self.sendmessage(1,msg.message,self.left)
                 return
 
-            if msg.message > self.right:
+            #if msg.message > self.right:
+            if Global.compare(Global,msg.message,self.right):
                 self.sendmessage(1,msg.message,self.right)
                 return
 
-            if msg.message > self.left and msg.message < self.id:
-                self.changeneighbour(msg.message)
+            #if msg.message > self.left and msg.message < self.id:
+            if Global.compare(Global,msg.message,self.left) and Global.compare(Global,self.id,msg.message):
+                self.changeneighbour(True,msg.message)
                 return
                     
-            if msg.message < self.right and msg.message > self.id:
-                self.changeneighbour(msg.message)
+            #if msg.message < self.right and msg.message > self.id:
+            if Global.compare(Global,self.right,msg.message) and Global.compare(Global,msg.message,self.id):
+                self.changeneighbour(False,msg.message)
                 return
+
+            self.readmessage()
 
         else:
             self.readmessage()
 
 
 
-    def changeneighbour(self,neighbour):
-        if neighbour<self.id:
-            if neighbour != Global.NEGATIVEINFINITY:
-                self.sendmessage(1,self.left,neighbour)
-            if self.left != Global.NEGATIVEINFINITY:
-                self.sendmessage(1,neighbour,self.left)
-            self.left=neighbour
-        elif neighbour>self.id:
-            if neighbour != Global.POSITIVEINFINITY:
-                self.sendmessage(1,self.right,neighbour)
-            if self.right != Global.POSITIVEINFINITY:
-                self.sendmessage(2,neighbour,self.right)
-            self.right=neighbour
+    def changeneighbour(self,isleft,neighbour):
+        if isleft:
+        	self.sendmessage(1,self.left,neighbour)
+        	if self.left != Global.NEGATIVEINFINITY:
+        		self.sendmessage(1,neighbour,self.left)
+        	self.left=neighbour
+        else:
+        	self.sendmessage(1,self.right,neighbour)
+        	if self.right != Global.POSITIVEINFINITY:
+        		self.sendmessage(2,neighbour,self.right)
+        	self.right=neighbour
 
 
     def __init__(self,issp,id, long,lat):
@@ -176,7 +228,8 @@ class Node(object):
         self.id="%d-%d" % (self.segment,self.originalid)
         for node in Global.supernodelist:
             if node.segment == self.segment:
-                if node.id < self.id:
+                #if node.id < self.id:
+                if Global.compare(Global,self.id,node.id):
                     self.left=node.id
                     self.right=Global.POSITIVEINFINITY
                 else:
@@ -204,47 +257,66 @@ class Node(object):
 
 
 
-numoftrial=1000
+numoftrial=1
 
-list_numberofpeers=[10,100,1000,10000,100000,1000000]
+list_numberofpeers=[10]#,100,1000,10000,100000,1000000]
 for n_p in list_numberofpeers:
-    for trial in range(numoftrial):
-        del Global.nodelist[:]
-        del Global.supernodelist[:]
+	res=[]
+	for trial in range(numoftrial):
+		Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
+		tempo=0
+		fflag=True
+		while tempo < cycletorun and fflag:
+			tempo+=1
+			print("\n\n\n\n\n\nCycle # : %d" % tempo)
+			for node in Global.nodelist:
+				node.run()
+			tnode=Global.nodelist[0]
+			for node in Global.nodelist:
+				if node.id < tnode.id:
+					tnode=node
+			temp=0
+			newid=tnode.id
+			oldid=Global.NEGATIVEINFINITY
+			print("list of lineared peers")
+			while temp < len(Global.nodelist):
+				temp=temp+1
 
-        Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
-        tempo=0
-        fflag=True
-        while tempo < cycletorun and fflag:
-            tempo+=1
-            for node in Global.nodelist:
-                node.run()
 
-            tnode=Global.nodelist[0]
-            for node in Global.nodelist:
-                if node.id < tnode.id:
-                    tnode=node
 
-            temp=0
-            newid=tnode.id
-            oldid=Global.NEGATIVEINFINITY
-            while temp < len(Global.nodelist):
+				iss = ""
+				if tnode.issupernode:
+					iss="\t(s)\t"
+				extratab=""
+				if tnode.left == Global.NEGATIVEINFINITY:
+					extratab="\t"
+				extratab2=""
+				if tnode.right == Global.POSITIVEINFINITY:
+					extratab2="\t\t"
+				print("%d : \t%s \t%s<- %s -> \t%s%s %s - %d messages" % (temp,tnode.left,extratab,tnode.id,tnode.right,extratab2, iss, len(tnode.messagebuffer)))
+				tnode.isarranged=True
 
-                temp=temp+1
-                for node in Global.nodelist:
-                    if node.id == tnode.right:
-                        tnode=node
-                        break
-        
-                if newid > oldid:
-                    oldid=newid
-                    newid=tnode.id
-                    if temp == len(Global.nodelist):
-                        print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
-                        fflag=False
-                else:
-                    break
+				for node in Global.nodelist:
+					if node.id == tnode.right:
+						tnode=node
+						break
+				if newid > oldid:
+					oldid=newid
+					newid=tnode.id
+					if temp == len(Global.nodelist):
+						#print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
+						res.append(tempo)
+						fflag=False
+				else:
+					break
 
+			print("\n\nlist of unlinearized peers for cycle: %d" % tempo)
+			counter = 1
+			for nod in Global.nodelist:
+				if nod.isarranged == False:
+					print("%d  -  %s <>  %s  <>  %s  --> %d mesages" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer)))
+					counter = counter+1
+	#print("for n=",n_p," the mean is ",numpy.mean(res))
 #use the original
 sys.stdout = original
 #print("This won't appear on file")  # Only on stdout
