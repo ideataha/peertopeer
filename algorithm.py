@@ -38,10 +38,10 @@ sys.stdout = Tee(sys.stdout, f)
 class Global:
     xxyy=[0.0,0.0,200.0,200.0]
     gpsaccuracy=6
-    #latsegments=[27,58,108,158,184,158,108,58,27,58,108,158,184]
-    #longsegments=[37,14,14,14,37,99,99,99,151,186,186,186,151]
-    latsegments=[27,58,108,158,184,158,108]
-    longsegments=[37,14,14,14,37,99,99]
+    latsegments=[27,58,108,158,184,158,108,58,27,58,108,158,184]
+    longsegments=[37,14,14,14,37,99,99,99,151,186,186,186,151]
+    #latsegments=[27,58,108,158,184,158,108]
+    #longsegments=[37,14,14,14,37,99,99]
     nodelist=[]
     supernodelist=[]
     POSITIVEINFINITY="z"
@@ -99,6 +99,7 @@ class Global:
         while temp < sn:
             Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
             Global.nodelist.append(Global.supernodelist[-1])
+            #Global.nodelist[-1].isarranged=True
             if temp != 0:
                 Global.supernodelist[-1].left = Global.supernodelist[-2].id
                 Global.supernodelist[-2].right = Global.supernodelist[-1].id
@@ -143,15 +144,17 @@ class Node(object):
                 return
 
             if msg.message == Global.NEGATIVEINFINITY:
-                if self.left != msg.message:
-                    self.sendmessage(1,msg.message,self.left)
-                self.left=msg.message
+                self.readmessage()
+                #if self.left != msg.message:
+                    #self.sendmessage(1,msg.message,self.left)
+                #self.left=msg.message
                 return
 
             if msg.message == Global.POSITIVEINFINITY:
-                if self.right != msg.message:
-                    self.sendmessage(1,msg.message,self.right)
-                self.right==msg.message
+                self.readmessage()
+                #if self.right != msg.message:
+                    #self.sendmessage(1,msg.message,self.right)
+                #self.right==msg.message
                 return
             
             #if msg.message < self.left:
@@ -270,8 +273,6 @@ for n_p in list_numberofpeers:
             tempo+=1
             if verbose:
                 print("\n\n\n\n\n\nCycle # : %d" % tempo)
-            for node in Global.nodelist:
-                node.run()
             tnode=Global.nodelist[0]
             for node in Global.nodelist:
                 if node.id < tnode.id:
@@ -301,7 +302,8 @@ for n_p in list_numberofpeers:
                     if node.id == tnode.right:
                         tnode=node
                         break
-                if newid > oldid:
+                #if newid > oldid:
+                if Global.compare(Global,newid,oldid):
                     oldid=newid
                     newid=tnode.id
                     if temp == len(Global.nodelist):
@@ -317,9 +319,15 @@ for n_p in list_numberofpeers:
             counter = 1
             for nod in Global.nodelist:
                 if nod.isarranged == False:
+                    iss = ""
+                    if nod.issupernode:
+                        iss="\t(s)\t"
                     if verbose:
-                        print("%d  -  %s <>  %s  <>  %s  --> %d mesages" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer)))
+                        print("%d  -  %s <>  %s  <>  %s  --> %d mesages %s" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer), iss))
                     counter = counter+1
+
+            for node in Global.nodelist:
+                node.run()
     meantxt=""
     if len(res)==0:
         meantxt="the topology is unstabilize in number of cycle less than %d" % cycletorun
