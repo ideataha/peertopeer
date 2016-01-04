@@ -1,7 +1,6 @@
 #__author__ = 'ideataha'
-import random
-import numpy,math
-import sys
+import numpy,math,random,sys
+#import matplotlib.pyplot,matplotlib
 from random import randint
 
 # numberofpeers=70
@@ -139,22 +138,8 @@ class Node(object):
         del self.messagebuffer[index]
 
         if msg.code == 1:
-            if msg.message == self.right or msg.message == self.left or msg.message == self.id:
+            if msg.message == self.right or msg.message == self.left or msg.message == self.id or msg.message == Global.POSITIVEINFINITY or msg.message == Global.NEGATIVEINFINITY:
                 self.readmessage()
-                return
-
-            if msg.message == Global.NEGATIVEINFINITY:
-                self.readmessage()
-                #if self.left != msg.message:
-                    #self.sendmessage(1,msg.message,self.left)
-                #self.left=msg.message
-                return
-
-            if msg.message == Global.POSITIVEINFINITY:
-                self.readmessage()
-                #if self.right != msg.message:
-                    #self.sendmessage(1,msg.message,self.right)
-                #self.right==msg.message
                 return
             
             #if msg.message < self.left:
@@ -262,9 +247,11 @@ class Node(object):
 
 numoftrial=1
 
-list_numberofpeers=[10,100,1000,10000,100000,1000000]
+list_numberofpeers=[10,50,100,500]#,1000,10000,100000,1000000]
 for n_p in list_numberofpeers:
     res=[]
+    yplot=[]
+    xplot=[]
     for trial in range(numoftrial):
         Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
         tempo=0
@@ -310,6 +297,8 @@ for n_p in list_numberofpeers:
                         if verbose:
                             print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
                         res.append(tempo)
+                        xplot.append(n_p)
+                        yplot.append(tempo)
                         fflag=False
                 else:
                     break
@@ -334,6 +323,10 @@ for n_p in list_numberofpeers:
     else:
         meantxt="the mean is %f" % numpy.mean(res)
     print("for n=",n_p,meantxt)
+
+#xplot=numpy.array(xplot)
+#yplot=numpy.array(yplot)
+#matplotlib.pyplot.plot(xplot,yplot,'s')
 #use the original
 sys.stdout = original
 #print("This won't appear on file")  # Only on stdout
