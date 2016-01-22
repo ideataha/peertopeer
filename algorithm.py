@@ -10,10 +10,21 @@ cycletorun=99999999
 #   numberofpeers=int(sys.argv[1])
 #   cycletorun=int(sys.argv[2])
 
+#number of trial for every parameters
+numoftrial=100
+numberofsupernode=14
+
+#distance cannot be less than 1
+#distance_between_supernode=10
+
+#this will determine the area of the network
+maxheightwidth=140
+list_numberofpeers=[10,50,100]#,500,1000,10000,100000,1000000]
+list_numberofsupernodes=[10,50,100]#,500,1000]#,10000,100000,1000000]
 reread=True
 verbose=False
 
-'''begin class to write in text fiel'''
+'''begin class to write in text file'''
 class Tee(object):
     def __init__(self, *files):
         self.files = files
@@ -35,6 +46,7 @@ sys.stdout = Tee(sys.stdout, f)
 
 '''begin global class'''
 class Global:
+    res=[]
     xxyy=[0.0,0.0,200.0,200.0]
     gpsaccuracy=6
     latsegments=[27,58,108,158,184,158,108,58,27,58,108,158,184]
@@ -77,37 +89,107 @@ class Global:
                         bbb+="0"
             tb.append(int(bbb))
         for i in range(len(ta)):
-            #print("ta : ",ta[i])
-            #print("tb : ",tb[i])
             if ta[i]<tb[i]:
                 return False
             if ta[i]>tb[i]:
                 return True
+    def genlatlong(num):
+        del Global.latsegments[:]
+        del Global.longsegments[:]
+        distance_between_supernode=num*1.0/maxheightwidth
+        for i in range(num):
+            Global.longsegments.append(i*distance_between_supernode)
+            Global.latsegments.append(i*distance_between_supernode)
+
     def dist(x1,x2,y1,y2):
         return math.sqrt((x1-x2)**2 + (y1-y2)**2)
+
     def createlong(self):
-        return round(random.uniform(Global.xxyy[1],Global.xxyy[3]),Global.gpsaccuracy)
+        return round(random.uniform(Global.longsegments[0],Global.longsegments[-1]),Global.gpsaccuracy)
+
     def createlat(self):
-        return round(random.uniform(Global.xxyy[0],Global.xxyy[2]),Global.gpsaccuracy)
+        return round(random.uniform(Global.latsegments[0],Global.latsegments[-1]),Global.gpsaccuracy)
+
+    '''def createlatflat(self,lmin,lmax):
+        return round(random.uniform(lmin,lmax),Global.gpsaccuracy)'''
     def createid(self):
         return random.randint(1,9999999999)
     def generate_nodes_supernodes(self,sn,n):
+        Global.genlatlong(sn)
         del Global.nodelist[:]
         del Global.supernodelist[:]
         temp=0
+
         while temp < sn:
             Global.supernodelist.append(Node(True,Global.createid(Global),Global.longsegments[temp],Global.latsegments[temp]))
             Global.nodelist.append(Global.supernodelist[-1])
-            #Global.nodelist[-1].isarranged=True
             if temp != 0:
                 Global.supernodelist[-1].left = Global.supernodelist[-2].id
                 Global.supernodelist[-2].right = Global.supernodelist[-1].id
             temp=temp+1
         for i in range (n):
+            #below for in 2D with random nodes
             Global.nodelist.append(Node(False,Global.createid(Global),Global.createlat(Global),Global.createlong(Global)))
+            #create diagonal lienar supernode in 2D area
+            #Global.nodelist.append(Node(False,Global.createid(Global),i*10,i*10))
+            #below for in 1D 
+            #Global.nodelist.append(Node(False,Global.createid(Global),Global.createlatflat(Global,0,Global.latsegments[-1]),0))
+
+    def iteratelinearizednode(self,tnode,newid,oldid):
+    	if verbose:
+    		print("list of linearized peers")
+    	temp=0
+    	while temp < len(Global.nodelist):
+    		temp+=1
+    		iss = ""
+    		if tnode.issupernode:
+    			iss="\t(s)\t"
+    		extratab=""
+    		if tnode.left == Global.NEGATIVEINFINITY:
+    			extratab="\t"
+    		extratab2=""
+    		if tnode.right == Global.POSITIVEINFINITY:
+    			extratab2="\t\t"
+    		if verbose:
+    			print("%d : \t%s \t%s<- %s -> \t%s%s %s - %d messages" % (temp,tnode.left,extratab,tnode.id,tnode.right,extratab2, iss, len(tnode.messagebuffer)))
+    		tnode.isarranged=True
+    		for node in Global.nodelist:
+    			if node.id == tnode.right:
+    				tnode=node
+    				break
+
+    		if Global.compare(Global,newid,oldid):
+    			oldid=newid
+    			newid=tnode.id
+    			if temp == len(Global.nodelist):
+    				if verbose:
+    					print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
+    				Global.res.append(tempo)
+    				return False
+    		else:
+    			break
+    	return True
+
+
+    def findunlinearizednode():
+    	print("\n\nlist of unlinearized peers for cycle: %d. All nodes is linearized if there is no single node down here" % tempo)
+    	counter = 1
+    	for nod in Global.nodelist:
+    		if nod.isarranged == False:
+    			iss = ""
+    			if nod.issupernode:
+    				iss="\t(s)\t"
+    			print("%d  -  %s <>  %s  <>  %s  --> %d messages %s" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer), iss))
+    			counter = counter+1
+            
     
-    def iterate(self):
-        print("done")
+    def printresult(self,cycletorun,numberofnode,numberofsupernode):
+        meantxt=""
+        if len(Global.res)==0:
+        	meantxt="the topology fail to stabilize in number of cycle less than %d" % cycletorun
+        else:
+        	meantxt="the mean is %f" % numpy.mean(Global.res)
+        print("for node=",numberofnode,", supernode=",numberofsupernode,meantxt)
 '''end global class'''
 
 
@@ -230,11 +312,11 @@ class Node(object):
             self.readmessage()
         while self.reread and len(self.messagebuffer) != 0:
             self.readmessage()
-            #print("check whether left neighbour is correct")
+            #print("check whether left neighbor is correct")
         if self.left != Global.NEGATIVEINFINITY and self.timeoutleft:
             self.sendmessage(1,self.id,self.left)
             #self.timeoutleft=False
-            #print("check whether right neighbour is correct if available")
+            #print("check whether right neighbor is correct if available")
         if self.right != Global.POSITIVEINFINITY and self.timeoutright:
             self.sendmessage(1,self.id,self.right)
             #self.timeoutright=False
@@ -242,18 +324,11 @@ class Node(object):
 '''end node class'''
 
 
-
-
-
-numoftrial=1
-
-list_numberofpeers=[10,50,100,500]#,1000,10000,100000,1000000]
+numberofsupernode=list_numberofsupernodes[1]
 for n_p in list_numberofpeers:
-    res=[]
-    yplot=[]
-    xplot=[]
+    del Global.res[:]
     for trial in range(numoftrial):
-        Global.generate_nodes_supernodes(Global,len(Global.latsegments),n_p)
+        Global.generate_nodes_supernodes(Global,numberofsupernode,n_p)
         tempo=0
         fflag=True
         while tempo < cycletorun and fflag:
@@ -264,69 +339,39 @@ for n_p in list_numberofpeers:
             for node in Global.nodelist:
                 if node.id < tnode.id:
                     tnode=node
-            temp=0
-            newid=tnode.id
-            oldid=Global.NEGATIVEINFINITY
+
+            fflag=Global.iteratelinearizednode(Global,tnode,tnode.id,Global.NEGATIVEINFINITY)
             if verbose:
-                print("list of lineared peers")
-            while temp < len(Global.nodelist):
-                temp=temp+1
-
-                iss = ""
-                if tnode.issupernode:
-                    iss="\t(s)\t"
-                extratab=""
-                if tnode.left == Global.NEGATIVEINFINITY:
-                    extratab="\t"
-                extratab2=""
-                if tnode.right == Global.POSITIVEINFINITY:
-                    extratab2="\t\t"
-                if verbose:
-                    print("%d : \t%s \t%s<- %s -> \t%s%s %s - %d messages" % (temp,tnode.left,extratab,tnode.id,tnode.right,extratab2, iss, len(tnode.messagebuffer)))
-                tnode.isarranged=True
-
-                for node in Global.nodelist:
-                    if node.id == tnode.right:
-                        tnode=node
-                        break
-                #if newid > oldid:
-                if Global.compare(Global,newid,oldid):
-                    oldid=newid
-                    newid=tnode.id
-                    if temp == len(Global.nodelist):
-                        if verbose:
-                            print ("number of node: %d  -  trial number:%d  -  number of cycle: %d" %(n_p,trial,tempo))
-                        res.append(tempo)
-                        xplot.append(n_p)
-                        yplot.append(tempo)
-                        fflag=False
-                else:
-                    break
-
-            if verbose:
-                print("\n\nlist of unlinearized peers for cycle: %d" % tempo)
-            counter = 1
-            for nod in Global.nodelist:
-                if nod.isarranged == False:
-                    iss = ""
-                    if nod.issupernode:
-                        iss="\t(s)\t"
-                    if verbose:
-                        print("%d  -  %s <>  %s  <>  %s  --> %d mesages %s" % (counter, nod.left,nod.id,nod.right, len(nod.messagebuffer), iss))
-                    counter = counter+1
+            	Global.findunlinearizednode()
 
             for node in Global.nodelist:
                 node.run()
-    meantxt=""
-    if len(res)==0:
-        meantxt="the topology is unstabilize in number of cycle less than %d" % cycletorun
-    else:
-        meantxt="the mean is %f" % numpy.mean(res)
-    print("for n=",n_p,meantxt)
+    Global.printresult(Global,cycletorun,n_p,numberofsupernode)
+        
+    
+numberofnode=list_numberofpeers[1]
+for n_s in list_numberofsupernodes:
+	del Global.res[:]
+	for trial in range(numoftrial):
+		Global.generate_nodes_supernodes(Global,n_s,numberofnode)
+		tempo=0
+		fflag=True
+		while tempo < cycletorun and fflag:
+			tempo+=1
+			if verbose:
+				print("\n\n\n\n\n\nCycle # : %d" % tempo)
+			tnode=Global.nodelist[0]
+			for node in Global.nodelist:
+				if node.id < tnode.id:
+					tnode=node
 
-#xplot=numpy.array(xplot)
-#yplot=numpy.array(yplot)
-#matplotlib.pyplot.plot(xplot,yplot,'s')
+			fflag=Global.iteratelinearizednode(Global,tnode,tnode.id,Global.NEGATIVEINFINITY)
+			if verbose:
+				Global.findunlinearizednode()
+			for node in Global.nodelist:
+				node.run()
+	Global.printresult(Global,cycletorun,numberofnode,n_s)
+
 #use the original
 sys.stdout = original
 #print("This won't appear on file")  # Only on stdout
